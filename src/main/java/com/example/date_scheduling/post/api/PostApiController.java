@@ -124,6 +124,19 @@ public class PostApiController {
         return service.searchReviewsServ(category.getAddress());
 
     }
+
+    @PostMapping("/search/{postId}")
+    public FindAllPostDto searchOtherReviews(@RequestBody Category category, @PathVariable String postId){
+        log.info("/api/posts/search/{} GET request", category);
+
+        if(category.getArea() == null || category.getAddress() == null){
+            log.warn("{area} or {address} cannot be null");
+            throw new RuntimeException("{area} or {address} cannot be null!");
+        }
+
+        return service.searchOtherReviewsServ(category.getAddress(), postId);
+
+    }
     /////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -226,8 +239,9 @@ public class PostApiController {
 
     /////////////////////////////////////////////////
     // 게시글 좋아요 기능(추가)
-    @PostMapping("/{postId}")
+    @PostMapping("/mylike/{postId}")
     public ResponseEntity<?> addLike(@PathVariable String postId, @AuthenticationPrincipal String username){
+
         boolean flag = myLikeService.addLikeServ(postId, username);
         log.info("{} 좋아요 추가 - {}", postId, username);
         return ResponseEntity.ok().body(flag);
