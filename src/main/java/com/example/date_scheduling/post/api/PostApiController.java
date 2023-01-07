@@ -10,14 +10,20 @@ import com.example.date_scheduling.post.entity.Post;
 import com.example.date_scheduling.post.service.CategoryService;
 import com.example.date_scheduling.post.service.MyLikeService;
 import com.example.date_scheduling.post.service.PostService;
+import com.example.date_scheduling.util.FileUploadUtil;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @Slf4j  // 로깅을 위해
@@ -29,6 +35,9 @@ public class PostApiController {
     private final PostService service;
     private final CategoryService categoryService;
     private final MyLikeService myLikeService;
+
+    @Value("${upload.path.post}")
+    private String uploadRootPath;
 
     //메인페이지에서 보여줄 리뷰 목록과 마이페이지에서 보여줄 리뷰 목록 나누기
     // 게시물 목록 전체 조회 요청
@@ -71,19 +80,46 @@ public class PostApiController {
 
     //리뷰 등록 요청
     @PostMapping(value = "/new")
-    public ResponseEntity<?> create(@AuthenticationPrincipal String username, @RequestBody RequestPostDto requestPostDto){
-
-        log.info("/api/posts/new POST request!", requestPostDto);
-
-        Post newPost = requestPostDto.getPost();
-        Category category = requestPostDto.getCategory();
-
-        newPost.setUserId(username);
-        log.info("/api/reviews POST request! - {}", newPost);
+    public ResponseEntity<?> create(@AuthenticationPrincipal String username, @RequestPart("postInfo") RequestPostDto requestPostDto,
+                                    @RequestPart(value = "image",required = false)MultipartFile image) throws IOException {
 
         try{
-            FindAllPostDto dto = service.createServ(newPost, category.getAddress());
+            log.info("/api/posts/new POST request!", requestPostDto);
+            Post newPost = requestPostDto.getPost();
+            Category category = requestPostDto.getCategory();
+            newPost.setUserId(username);
+            log.info("/api/reviews POST request! - {}", newPost);
 
+            if(image != null){
+                log.info("profileImg : {}",image.getOriginalFilename());
+
+                //1.서버에 이미지파일을 저장, 이미지를 서버에 업로드
+                //1-a.파일 저장 위치를 지정하여 파일 객체에 포장
+                String originalFilename = image.getOriginalFilename();
+                //1-a-1.파일명이 중복되지 않도록 변경
+                String uploadFileName = UUID.randomUUID() + "_" + originalFilename;
+                //1-a-2.압럳, 폴더를 날짜별로 생성
+                String newUploadPath = FileUploadUtil.makeUploadDirectory(uploadRootPath);
+                File uploadFile = new File(newUploadPath + File.separator + uploadFileName);
+                //1-b. 파일을 해당 경로에 업로드
+                image.transferTo(uploadFile);
+                // 2. 데이터베이스에 이미지 정보를 저장 - 누가 어떤사진을 올렸는가
+
+                // 2-a. newUploadPath에서 rootPath를 제거
+                //  ex) new: E:/profile_upload/2023/01/07
+                //      root: E:/profile_upload
+                //      new - root == /2023/01/07
+
+                // str: hello java
+                // str.substring(6) => 6번부터 끝까지 추출 == java
+                String savePath
+                        = newUploadPath.substring(uploadRootPath.length());
+
+                newPost.setImage(savePath + File.separator + uploadFileName);
+
+            }
+
+            FindAllPostDto dto = service.createServ(newPost, category.getAddress());
             if(dto == null){
                 return ResponseEntity.notFound().build();
             }

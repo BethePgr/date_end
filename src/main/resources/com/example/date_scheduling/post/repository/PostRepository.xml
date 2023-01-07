@@ -62,4 +62,8 @@
         WHERE postId=#{postId}
     </update>
 
+    <select id="findImage" resultType="String">
+        select image from tbl_post where postId = #{postId}
+
+    </select>
 </mapper>

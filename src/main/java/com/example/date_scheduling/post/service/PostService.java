@@ -149,4 +149,12 @@ public class PostService {
         return findAllMyLikesServ(username);
     }
 
+    //프로필 찾기
+    public String getImagePath(String postId){
+        String image = repository.findImage(postId);
+        log.info("find image path - {}",image);
+        return image;
+    }
+
+
 }
